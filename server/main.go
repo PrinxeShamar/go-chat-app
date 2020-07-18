@@ -23,12 +23,19 @@ func main() {
 func new_connection(connections_addr *map[net.Conn]string, connection_addr *net.Conn) {
 	connections := *connections_addr
 	connection := *connection_addr
-	username := get_message(&connection)
+	username, _ := get_message(&connection)
 	connections[connection] = username
 	fmt.Println("IP:", connection.RemoteAddr().String(), "\nUsername:", username)
 	send_message(&connections, &connection, username + " joined the chat!")
 	for {
-		message := get_message(&connection)
+		message, err := get_message(&connection)
+		if err != nil {
+			fmt.Println("IP:", connection.RemoteAddr().String(), "Closed")
+			connection.Close()
+			delete(connections, connection)
+			send_message(&connections, &connection, username + " left the chat!")
+			return 
+		}
 		send_message(&connections, &connection, username + " > " + message)
 	}
 }
@@ -41,7 +48,7 @@ func send_message(connections_addr *map[net.Conn]string, connection_addr *net.Co
 	}
 }
 
-func get_message(conn *net.Conn) string {
-	message, _ := bufio.NewReader(*conn).ReadString('\n')
-  return strings.TrimRight(string(message), "\r\n")
+func get_message(conn *net.Conn) (string, error) {
+	message, err := bufio.NewReader(*conn).ReadString('\n')
+  	return strings.TrimRight(string(message), "\r\n"), err
 }
